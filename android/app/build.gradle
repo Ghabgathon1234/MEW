@@ -1,0 +1,53 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    // Define the app's namespace, which replaces the previous package declaration
+    namespace "com.example.mew_shifts"
+    compileSdk 34 // Set to the latest version or your desired compile SDK version
+
+    defaultConfig {
+        applicationId "com.example.mew_shifts" // Your app's unique Application ID
+        minSdk 21 // Minimum supported SDK
+        targetSdk 33 // Target SDK version
+        versionCode 1 // Version code
+        versionName "1.0" // Version name
+        multiDexEnabled true
+    }
+
+    buildTypes {
+        release {
+            // Enable proguard if needed for obfuscation
+            // minifyEnabled true
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug // Change this if you have a release key setup
+        }
+    }
+
+    // Java compatibility settings
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // Kotlin JVM target settings
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    ndkVersion "21.1.6352462" // You can specify a compatible NDK version if needed
+}
+
+flutter {
+    source = "../.." // Path to the Flutter project directory
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'
+    implementation 'androidx.window:window:1.0.0'
+    implementation 'androidx.window:window-java:1.0.0'
+}
