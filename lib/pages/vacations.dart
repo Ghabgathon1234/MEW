@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart'; // Add easy localization
-import '../database_helper.dart'; // Adjust the import path as needed
+import 'package:easy_localization/easy_localization.dart';
+import '../database_helper.dart';
 
 class VacationsPage extends StatefulWidget {
   const VacationsPage({super.key});
@@ -17,10 +17,11 @@ class _VacationsPageState extends State<VacationsPage> {
     'Sick Leave',
     'Vacation',
     'Casual Leave',
+    'Training Course',
+    'OFF (before/after training)',
     'Remove Vacation'
   ];
 
-  // Function to select the start date
   Future<void> _selectStartDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -38,7 +39,6 @@ class _VacationsPageState extends State<VacationsPage> {
     }
   }
 
-  // Function to select the end date
   Future<void> _selectEndDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -53,45 +53,59 @@ class _VacationsPageState extends State<VacationsPage> {
     }
   }
 
-  // Function to save vacation details to the database
   Future<void> _saveVacation() async {
     DatabaseHelper dbHelper = DatabaseHelper();
 
     for (DateTime date = _startDate;
         !date.isAfter(_endDate);
         date = date.add(const Duration(days: 1))) {
-      // Retrieve existing day record
       DayRecord? existingRecord =
           await dbHelper.getDayRecord(date.year, date.month, date.day);
 
       if (existingRecord != null) {
-        // Set status based on vacation type
         String status = _selectedVacationType == 'Remove Vacation'
             ? 'onDuty'
             : _selectedVacationType;
 
-        // Update the day record status
-        DayRecord updatedRecord = DayRecord(
-          year: existingRecord.year,
-          month: existingRecord.month,
-          day: existingRecord.day,
-          status: status,
-          shift: existingRecord.shift,
-          attend1: status == 'onDuty' ? existingRecord.attend1 : null,
-          attend2: status == 'onDuty' ? existingRecord.attend2 : null,
-          attend3: status == 'onDuty' ? existingRecord.attend3 : null,
-          leave1: status == 'onDuty' ? existingRecord.leave1 : null,
-          leave2: status == 'onDuty' ? existingRecord.leave2 : null,
-          delayMinutes: status == 'onDuty' ? existingRecord.delayMinutes : 0,
-        );
+        if (status == 'Training Course') {
+          DayRecord updatedRecord = DayRecord(
+            year: existingRecord.year,
+            month: existingRecord.month,
+            day: existingRecord.day,
+            status: status,
+            shift: status,
+            attend1: status == 'onDuty' ? existingRecord.attend1 : null,
+            attend2: status == 'onDuty' ? existingRecord.attend2 : null,
+            attend3: status == 'onDuty' ? existingRecord.attend3 : null,
+            leave1: status == 'onDuty' ? existingRecord.leave1 : null,
+            leave2: status == 'onDuty' ? existingRecord.leave2 : null,
+            delayMinutes: status == 'onDuty' ? existingRecord.delayMinutes : 0,
+          );
+          await dbHelper.insertOrUpdateDayRecord(updatedRecord);
+        } else {
+          DayRecord updatedRecord = DayRecord(
+            year: existingRecord.year,
+            month: existingRecord.month,
+            day: existingRecord.day,
+            status: status,
+            shift: existingRecord.shift,
+            attend1: status == 'onDuty' ? existingRecord.attend1 : null,
+            attend2: status == 'onDuty' ? existingRecord.attend2 : null,
+            attend3: status == 'onDuty' ? existingRecord.attend3 : null,
+            leave1: status == 'onDuty' ? existingRecord.leave1 : null,
+            leave2: status == 'onDuty' ? existingRecord.leave2 : null,
+            delayMinutes: status == 'onDuty' ? existingRecord.delayMinutes : 0,
+          );
 
-        await dbHelper.insertOrUpdateDayRecord(updatedRecord);
+          await dbHelper.insertOrUpdateDayRecord(updatedRecord);
+        }
       }
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text('vacation_updated'.tr())), // Using tr() for translation
+          content:
+              Text('vacation is updated'.tr())), // Using tr() for translation
     );
   }
 
@@ -99,87 +113,143 @@ class _VacationsPageState extends State<VacationsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Vacations'.tr()), // Using tr() for translation
+        title: Text(
+          'Vacations'.tr(),
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Color(0xFF3B5BDB),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // First Row: Title
             Center(
               child: Text(
-                'Add/Remove Vacations'.tr(), // Using tr() for translation
+                'Add/Remove Vacations'.tr(),
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blueAccent,
+                  color: Color(0xFF3B5BDB),
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // Second Row: Vacation Type Picker
-            Center(
-              child: DropdownButton<String>(
-                value: _selectedVacationType,
-                items: _vacationTypes.map((String vacationType) {
-                  return DropdownMenuItem<String>(
-                    value: vacationType,
-                    child: Text(vacationType.tr()), // Translate vacation types
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedVacationType = newValue!;
-                  });
-                },
+            // Vacation Type Card
+            _buildCard(
+              child: Column(
+                children: [
+                  Text(
+                    'Vacation Type'.tr(),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButton<String>(
+                    value: _selectedVacationType,
+                    items: _vacationTypes.map((String vacationType) {
+                      return DropdownMenuItem<String>(
+                        value: vacationType,
+                        child: Text(vacationType.tr()),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedVacationType = newValue!;
+                      });
+                    },
+                    isExpanded: true,
+                    //dropdownColor: Colors.white,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // Third Row: Start Date Picker
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'start date:'.tr(), // Using tr() for translation
-                  style: const TextStyle(fontSize: 16),
-                ),
-                ElevatedButton(
-                  onPressed: () => _selectStartDate(context),
-                  child: Text(DateFormat('yyyy-MM-dd').format(_startDate)),
-                ),
-              ],
+            // Start Date Picker Card
+            _buildCard(
+              child: _buildDatePicker(
+                title: 'start date'.tr(),
+                date: _startDate,
+                onPressed: () => _selectStartDate(context),
+              ),
             ),
             const SizedBox(height: 20),
 
-            // Fourth Row: End Date Picker
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'end date:'.tr(), // Using tr() for translation
-                  style: const TextStyle(fontSize: 16),
-                ),
-                ElevatedButton(
-                  onPressed: () => _selectEndDate(context),
-                  child: Text(DateFormat('yyyy-MM-dd').format(_endDate)),
-                ),
-              ],
+            // End Date Picker Card
+            _buildCard(
+              child: _buildDatePicker(
+                title: 'end date'.tr(),
+                date: _endDate,
+                onPressed: () => _selectEndDate(context),
+              ),
             ),
             const SizedBox(height: 30),
 
-            // Fifth Row: Save Button
+            // Save Button
             Center(
               child: ElevatedButton(
                 onPressed: _saveVacation,
-                child: Text('Save'.tr()), // Using tr() for translation
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  backgroundColor: Color(0xFF3B5BDB),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text('Save'.tr(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    )),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // Helper widget to create a card
+  Widget _buildCard({required Widget child}) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: child,
+      ),
+    );
+  }
+
+  // Helper widget to create a date picker row
+  Widget _buildDatePicker({
+    required String title,
+    required DateTime date,
+    required VoidCallback onPressed,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16),
+        ),
+        ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey.shade200,
+          ),
+          child: Text(
+            DateFormat('yyyy-MM-dd').format(date),
+            style: const TextStyle(color: Colors.black87),
+          ),
+        ),
+      ],
     );
   }
 }

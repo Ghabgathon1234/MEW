@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart'; // Import for localization
-import '../database_helper.dart'; // Adjust the import path as needed
+import 'package:easy_localization/easy_localization.dart';
+import '../database_helper.dart';
 
 class RecordsPage extends StatefulWidget {
   const RecordsPage({super.key});
@@ -19,17 +19,14 @@ class _RecordsPageState extends State<RecordsPage> {
     _fetchRecords();
   }
 
-  // Fetch the year and month records from the database
   Future<void> _fetchRecords() async {
     DatabaseHelper dbHelper = DatabaseHelper();
 
-    // Fetch all year records
     List<Map<String, dynamic>> yearRecordsMap =
         await dbHelper.getAllYearRecords();
     List<YearRecord> yearRecords =
         yearRecordsMap.map((e) => YearRecord.fromMap(e)).toList();
 
-    // Fetch month records for each year
     Map<int, List<MonthRecord>> monthRecords = {};
     for (var yearRecord in yearRecords) {
       int year = yearRecord.year;
@@ -46,7 +43,6 @@ class _RecordsPageState extends State<RecordsPage> {
     });
   }
 
-  // Format delay minutes as hh:mm
   String _formatDelay(int delayMinutes) {
     int hours = delayMinutes ~/ 60;
     int minutes = delayMinutes % 60;
@@ -57,67 +53,104 @@ class _RecordsPageState extends State<RecordsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('records'.tr()), // Using tr() for localization
+        title: Text(
+          'Records'.tr(),
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF3B5BDB),
       ),
-      body: _yearRecords.isEmpty
-          ? Center(
-              child: Text(
-                'no_records_found'.tr(), // Using tr() for localization
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: _yearRecords.isEmpty
+            ? Center(
+                child: Text(
+                  'no_records_found'.tr(),
+                  style: const TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              )
+            : ListView.builder(
+                itemCount: _yearRecords.length,
+                itemBuilder: (context, index) {
+                  YearRecord yearRecord = _yearRecords[index];
+                  int year = yearRecord.year;
+                  int workedDays = yearRecord.workedDays;
+                  int delayMinutes = yearRecord.delay;
+                  String formattedDelay = _formatDelay(delayMinutes);
+                  List<MonthRecord> months = _monthRecords[year] ?? [];
+
+                  return _buildYearCard(
+                    year: year,
+                    delay: formattedDelay,
+                    workedDays: workedDays,
+                    months: months,
+                  );
+                },
               ),
-            )
-          : ListView.builder(
-              itemCount: _yearRecords.length,
-              itemBuilder: (context, index) {
-                YearRecord yearRecord = _yearRecords[index];
-                int year = yearRecord.year;
-                int workedDays = yearRecord.workedDays;
-                int delayMinutes = yearRecord.delay;
-                String formattedDelay = _formatDelay(delayMinutes);
+      ),
+    );
+  }
 
-                // Get the list of month records for this year
-                List<MonthRecord> months = _monthRecords[year] ?? [];
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Year record section
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        '${'year'.tr()}: $year | ${'delay'.tr()}: $formattedDelay | ${'worked_days'.tr()}: $workedDays', // Using tr() for localization
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    // 12 rows for months with delay minutes
-                    Column(
-                      children: months.map((monthRecord) {
-                        String monthName = getMonthName(monthRecord.month)
-                            .tr(); // Localized month names
-                        int monthDelay = monthRecord.monthlyDelay;
-                        String formattedMonthDelay = _formatDelay(monthDelay);
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0, vertical: 4.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(monthName),
-                              Text('${'delay'.tr()}: $formattedMonthDelay'),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const Divider(thickness: 2), // Divider between years
-                  ],
-                );
-              },
+  Widget _buildYearCard({
+    required int year,
+    required String delay,
+    required int workedDays,
+    required List<MonthRecord> months,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      margin: const EdgeInsets.only(bottom: 20.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${'Year'.tr()}: $year',
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3B5BDB)),
             ),
+            const SizedBox(height: 8),
+            Text(
+              '${'Delay'.tr()}: $delay',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${'Worked Days'.tr()}: $workedDays',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const Divider(height: 20, thickness: 1.5),
+            Column(
+              children: months.map((monthRecord) {
+                String monthName = getMonthName(monthRecord.month).tr();
+                String formattedMonthDelay =
+                    _formatDelay(monthRecord.monthlyDelay);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        monthName,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      Text(
+                        '${'Delay'.tr()}: $formattedMonthDelay',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

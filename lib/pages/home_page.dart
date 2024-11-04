@@ -19,13 +19,15 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _delayMinutes = 0; // Track the total delay for the day
+  int _monthlyDelayMinutes = 0; // Initialize the variable to hold monthly delay
   bool _isVacation = false;
   String? selectedTeam;
   String? selectedLocation;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay = DateTime.now(); // For multi-selection
   final Map<String, String> _shifts = {}; // Use String keys
-  int _monthlyDelayMinutes = 0; // Initialize the variable to hold monthly delay
+  List<String> _selectedDayAttendTime = [];
+  List<String> _selectedDayLeaveTime = [];
 
   bool _canAttend = false;
   bool _canLeave = false;
@@ -98,6 +100,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       } // Update the state with the fetched delay
       _calculateShiftProgress(DateTime.now()); // Recalculate gauge progress
     });
+    print("Fetched monthly delay: $_monthlyDelayMinutes");
   }
 
   // Load team and location settings
@@ -170,16 +173,80 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   int _getTeamOffset(String team) {
-    switch (team) {
-      case 'D':
-        return 0;
-      case 'C':
-        return 1;
-      case 'A':
-        return 2;
-      case 'B':
-      default:
-        return 3;
+    if (selectedLocation! == 'Alzour Powerplant') {
+      switch (team) {
+        case 'D':
+          return 0;
+        case 'C':
+          return 1;
+        case 'A':
+          return 2;
+        case 'B':
+        default:
+          return 3;
+      }
+    } else if (selectedLocation! == 'Shuaibah Powerplant') {
+      switch (team) {
+        case 'C':
+          return 0;
+        case 'A':
+          return 1;
+        case 'Bs':
+          return 2;
+        case 'D':
+        default:
+          return 3;
+      }
+    } else if (selectedLocation! == 'Alshuwaikh Powerplant') {
+      switch (team) {
+        case 'D':
+          return 0;
+        case 'C':
+          return 1;
+        case 'A':
+          return 2;
+        case 'B':
+        default:
+          return 3;
+      }
+    } else if (selectedLocation! == 'West Doha Powerplant') {
+      switch (team) {
+        case 'D':
+          return 0;
+        case 'C':
+          return 1;
+        case 'A':
+          return 2;
+        case 'B':
+        default:
+          return 3;
+      }
+    } else if (selectedLocation! == 'East Doha Powerplant') {
+      switch (team) {
+        case 'D':
+          return 0;
+        case 'C':
+          return 1;
+        case 'A':
+          return 2;
+        case 'B':
+        default:
+          return 3;
+      }
+    } else if (selectedLocation! == 'Alsabbiyah Powerplant') {
+      switch (team) {
+        case 'D':
+          return 0;
+        case 'C':
+          return 1;
+        case 'A':
+          return 2;
+        case 'B':
+        default:
+          return 3;
+      }
+    } else {
+      return 3;
     }
   }
 
@@ -262,6 +329,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           .toLocal();
       shiftEnd = shiftStart
           .add(Duration(hours: 12)); // Night shift: 7:00 PM to 7:00 AM next day
+    } else if (_currentShift == 'Training Course') {
+      shiftStart = DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+              _currentShiftDay!.day, 8, 30)
+          .toLocal();
+      shiftEnd = shiftStart
+          .add(Duration(hours: 4)); // Night shift: 7:00 PM to 7:00 AM next day
     } else {
       setState(() {
         _canAttend = false;
@@ -468,6 +541,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         existingRecord.attend1 = now.toIso8601String();
         _canAttend = false;
         yearDelay += _delayMinutes;
+        _monthlyDelayMinutes += _delayMinutes;
         workedDays++;
         handleNotification(2, tzShiftEnd.subtract(Duration(minutes: 10)));
       } else if ((existingRecord.attend2 == null) &&
@@ -477,9 +551,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       } else if (existingRecord.leave1 != null) {
         delayDif = _delayMinutes;
         _delayMinutes += now.difference(shiftEnd).inMinutes;
+        //_monthlyDelayMinutes += now.difference(shiftEnd).inMinutes;
         existingRecord.attend3 ??= now.toIso8601String();
         if (delayDif > _delayMinutes) {
           yearDelay += (_delayMinutes - delayDif);
+          _monthlyDelayMinutes += (_delayMinutes - delayDif);
         }
       }
       existingRecord.delayMinutes = _delayMinutes;
@@ -494,8 +570,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         await dbHelper.insertOrUpdateDayRecord(existingRecord);
 
         await dbHelper.updateYearRecord(year, yearDelay, workedDays);
-        await dbHelper.insertOrUpdateMonthRecord(
-            _currentShiftDay!.year, _currentShiftDay!.month, yearDelay);
+        await dbHelper.insertOrUpdateMonthRecord(_currentShiftDay!.year,
+            _currentShiftDay!.month, _monthlyDelayMinutes);
       } finally {
         setState(() {
           _isLoading = false; // Hide loading spinner
@@ -550,6 +626,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       existingRecord.delayMinutes = _delayMinutes;
       if (yearRecord != null) {
         yearRecord.delay += (_delayMinutes - oldDelay);
+        _monthlyDelayMinutes += (_delayMinutes - oldDelay);
         await dbHelper.updateYearRecord(
             yearRecord.year, yearRecord.delay, yearRecord.workedDays);
       }
@@ -575,8 +652,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
       try {
         // Simulate a network call or some async operation
-        await dbHelper.insertOrUpdateMonthRecord(
-            _currentShiftDay!.year, _currentShiftDay!.month, yearRecord!.delay);
+        await dbHelper.insertOrUpdateMonthRecord(_currentShiftDay!.year,
+            _currentShiftDay!.month, _monthlyDelayMinutes);
         _fetchDayInfo(now);
         await _fetchMonthlyDelay();
       } finally {
@@ -619,15 +696,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       // Return true if the next day is a vacation
       return true;
     }
-
     // Return false if the next day is not a vacation
     return false;
+  }
+
+  // Add this function in the same file as your _fetchDayInfo method.
+  String _formatTime(String? time) {
+    if (time == null) return '';
+    DateTime parsedTime = DateTime.parse(time);
+    int hour = parsedTime.hour % 12 == 0
+        ? 12
+        : parsedTime.hour % 12; // Convert to 12-hour format
+    return '${hour.toString().padLeft(2, '0')}:${parsedTime.minute.toString().padLeft(2, '0')}';
   }
 
   // Fetch day information from the database
   // Fetch day information from the database
   Future<void> _fetchDayInfo(DateTime day) async {
     DatabaseHelper dbHelper = DatabaseHelper();
+    _selectedDayAttendTime = [];
+    _selectedDayLeaveTime = [];
 
     // Fetch the day record for the selected day, not the current shift day
     DayRecord? record =
@@ -639,13 +727,32 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _delayMinutes = record.delayMinutes;
         if (record.attend1 != null) {
           _selectedDayStatus = 'On Duty';
+          _selectedDayAttendTime.add(_formatTime(record.attend1));
         } else if (record.attend1 == null && record.status == 'onDuty') {
           _selectedDayStatus = record.shift!;
         } else {
           _selectedDayStatus = record.status!;
         }
         _selectedDayDelay = record.status != 'onDuty' ? 0 : record.delayMinutes;
+        if (record.attend2 != null) {
+          _selectedDayAttendTime.add(_formatTime(record.attend2));
+        }
+        if (record.attend3 != null) {
+          _selectedDayAttendTime.add(_formatTime(record.attend3));
+        }
+
+        if (record.leave1 != null) {
+          _selectedDayLeaveTime.add(_formatTime(record.leave1));
+        }
+        if (record.leave2 != null) {
+          _selectedDayLeaveTime.add(_formatTime(record.leave2));
+        }
+
+        _selectedDayDelay = record.status != 'onDuty' ? 0 : record.delayMinutes;
       } else {
+        _selectedDayStatus = 'No record'; // Default message if no data found
+        _selectedDayDelay = 0;
+
         _selectedDayStatus = 'none'; // Default value if no record exists
         _selectedDayDelay = 0;
       }
@@ -661,118 +768,195 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       children: [
         Scaffold(
           appBar: AppBar(
-            title: Text('Welcome, Team $selectedTeam!').tr(),
+            title: Text(
+              'Welcome, Team $selectedTeam!'.tr(),
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF3B5BDB),
           ),
           body: selectedTeam == null
-              ? Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      // TableCalendar with optimized data fetching
-                      TableCalendar(
-                        firstDay: DateTime.utc(2020, 1, 1),
-                        lastDay: DateTime.utc(2030, 12, 31),
-                        focusedDay: _focusedDay,
-                        selectedDayPredicate: (day) {
-                          return isSameDay(_selectedDay, day);
-                        },
-                        onDaySelected: (selectedDay, focusedDay) {
-                          setState(() {
-                            _selectedDay = selectedDay;
-                            _focusedDay = focusedDay;
-                          });
-                          _fetchDayInfo(selectedDay);
-                        },
-                        calendarBuilders: CalendarBuilders(
-                          defaultBuilder: (context, date, _) {
-                            return _buildDayCell(date, false);
+                      // Calendar without Card
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: TableCalendar(
+                          firstDay: DateTime.utc(2020, 1, 1),
+                          lastDay: DateTime.utc(2030, 12, 31),
+                          focusedDay: _focusedDay,
+                          selectedDayPredicate: (day) =>
+                              isSameDay(_selectedDay, day),
+                          onDaySelected: (selectedDay, focusedDay) {
+                            setState(() {
+                              _selectedDay = selectedDay;
+                              _focusedDay = focusedDay;
+                            });
+                            _fetchDayInfo(selectedDay);
                           },
-                          selectedBuilder: (context, date, _) {
-                            return _buildSelectedDateWidget(
-                                date); // Custom selected widget
-                          },
-                          todayBuilder: (context, date, _) {
-                            return _buildTodayDateWidget(
-                                date); // Custom today widget
-                          },
-                        ),
-                        availableCalendarFormats: const {
-                          CalendarFormat.month: 'Month',
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Display selected day's information
-                      if (_selectedDay != null) ...[
-                        Divider(),
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: 8),
-                              Text(
-                                '${'Status'.tr()}: ${_selectedDayStatus.tr()}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                '${'Delay'.tr()}: ${_formatHoursAndMinutes(_selectedDayDelay)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          calendarBuilders: CalendarBuilders(
+                            defaultBuilder: (context, date, _) =>
+                                _buildDayCell(date, false),
+                            selectedBuilder: (context, date, _) =>
+                                _buildSelectedDateWidget(date),
+                            todayBuilder: (context, date, _) =>
+                                _buildTodayDateWidget(date),
                           ),
+                          availableCalendarFormats: const {
+                            CalendarFormat.month: 'Month',
+                          },
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 10),
 
-                      // Vacation label
-                      if (_isVacation) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Text(
-                            'You are on vacation',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(211, 218, 33, 0),
-                            ),
-                          ).tr(),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Left half: buttons
-                          Expanded(
+                      // Selected Day's Information Card
+                      if (_selectedDay != null) ...[
+                        Card(
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      minimumSize: Size(150, 50)),
-                                  onPressed: _canAttend ? _handleAttend : null,
-                                  child: const Text('Attend').tr(),
-                                ),
-                                const SizedBox(height: 10),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      minimumSize: Size(150, 50)),
-                                  onPressed: _canLeave ? _handleLeave : null,
-                                  child: const Text('Leave').tr(),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Left: Status and Delay
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${'Status'.tr()}: ${_selectedDayStatus.tr()}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF3B5BDB),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          '${'Delay'.tr()}: ${_formatHoursAndMinutes(_selectedDayDelay)}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF3B5BDB),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    // Right: Attendance and Leave Times
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (_selectedDayAttendTime.isNotEmpty)
+                                          Text(
+                                            '${'Attend'.tr()}: ${_selectedDayAttendTime.join(", ")}',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        const SizedBox(height: 8),
+                                        if (_selectedDayLeaveTime.isNotEmpty)
+                                          Text(
+                                            '${'Leave'.tr()}: ${_selectedDayLeaveTime.join(", ")}',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                          // Right half: shift gauge
-                          Expanded(
-                              child: _buildShiftGauge(_monthlyDelayMinutes)),
-                        ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      // Vacation Label Card
+                      if (_isVacation) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12.0, horizontal: 16.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'You are on vacation',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color.fromARGB(211, 218, 33, 0),
+                              ),
+                            ).tr(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      // Attend and Leave Buttons with Shift Gauge Card
+                      Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        minimumSize: const Size(150, 50),
+                                        backgroundColor:
+                                            const Color(0xFF3B5BDB),
+                                      ),
+                                      onPressed:
+                                          _canAttend ? _handleAttend : null,
+                                      child: const Text(
+                                        'Attend',
+                                        style: TextStyle(color: Colors.white),
+                                      ).tr(),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        minimumSize: const Size(150, 50),
+                                        backgroundColor:
+                                            const Color(0xFF3B5BDB),
+                                      ),
+                                      onPressed:
+                                          _canLeave ? _handleLeave : null,
+                                      child: const Text(
+                                        'Leave',
+                                        style: TextStyle(color: Colors.white),
+                                      ).tr(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildShiftGauge(_monthlyDelayMinutes),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 20),
                     ],
@@ -780,7 +964,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
         ),
 
-        // Loading indicator
+        // Loading Indicator
         if (_isLoading)
           Container(
             color: Colors.black.withOpacity(0.5),
@@ -799,28 +983,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final dayRecord = _dayRecordsCache[formattedDate];
 
     Color cellColor;
-    if (dayRecord != null && dayRecord.status != 'onDuty') {
+    if (dayRecord?.status == 'Training Course') {
+      cellColor = Color(0xFFFFD43B);
+    } else if (dayRecord != null && dayRecord.status != 'onDuty') {
       cellColor = Color.fromARGB(211, 218, 33, 0);
     } else {
       cellColor = color;
     }
 
     return Container(
-      margin: const EdgeInsets.all(4.0),
+      margin: const EdgeInsets.all(3.0),
       alignment: Alignment.center,
+      width: 40.0,
+      height: 40.0,
       decoration: BoxDecoration(
         color: cellColor,
         border: Border.all(
-          color: Colors.black12,
-          width: 3.5,
+          color: Colors.black38,
+          width: 2.5,
         ),
         borderRadius:
-            BorderRadius.circular(15.0), // Unique radius for selected day
+            BorderRadius.circular(100.0), // Unique radius for selected day
       ),
       child: Text(
         date.day.toString(),
-        style: const TextStyle(
-            color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+        style: const TextStyle(color: Colors.white),
       ),
     );
   }
@@ -832,30 +1019,32 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final dayRecord = _dayRecordsCache[formattedDate];
 
     Color cellColor;
-    if (dayRecord != null && dayRecord.status != 'onDuty') {
+    if (dayRecord?.status == 'Training Course') {
+      cellColor = Color(0xFFFFD43B);
+    } else if (dayRecord != null && dayRecord.status != 'onDuty') {
       cellColor = Color.fromARGB(211, 218, 33, 0);
     } else {
       cellColor = color.withAlpha(180);
     }
 
     return Container(
-      margin: const EdgeInsets.all(4.0),
+      margin: const EdgeInsets.all(3.0),
       alignment: Alignment.center,
-      width: 50.0,
-      height: 50.0,
+      width: 35.0,
+      height: 35.0,
       decoration: BoxDecoration(
         color: cellColor,
-        border: Border.all(
-          color: Color.fromARGB(211, 218, 33, 0),
-          width: 1.5,
-        ),
+        // border: Border.all(
+        //   color: Color.fromARGB(211, 218, 33, 0),
+        //   width: 1.5,
+        // ),
         borderRadius:
             BorderRadius.circular(100.0), // Full circular radius for today
       ),
       child: Text(
         date.day.toString(),
         style: const TextStyle(
-            color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -867,7 +1056,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final dayRecord = _dayRecordsCache[formattedDate];
 
     Color cellColor;
-    if (dayRecord != null && dayRecord.status != 'onDuty') {
+    if (dayRecord?.status == 'Training Course') {
+      cellColor = Color(0xFFFFD43B);
+    } else if (dayRecord != null && dayRecord.status != 'onDuty') {
       cellColor = Color.fromARGB(211, 218, 33, 0); // Special color for off-duty
     } else if (isToday) {
       cellColor = color.withAlpha(180); // Lighter color for today's date
@@ -876,15 +1067,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
 
     return Container(
-      margin: const EdgeInsets.all(4.0),
+      margin: const EdgeInsets.all(3.0),
       alignment: Alignment.center,
+      width: 40.0,
+      height: 40.0,
       decoration: BoxDecoration(
         color: cellColor,
         border: isSelected
             ? Border.all(
                 color: Colors.black45, width: 2.5) // Highlight selected day
             : null,
-        borderRadius: BorderRadius.circular(15.0),
+        borderRadius: BorderRadius.circular(100.0),
       ),
       child: Text(
         date.day.toString(),
@@ -902,10 +1095,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     Color gaugeColor;
     if (monthlyDelayMinutes <= 540) {
       // 0 - 9 hours
-      gaugeColor = Color.fromARGB(255, 51, 109, 210);
+      gaugeColor = Color(0xFF364fc7);
     } else if (monthlyDelayMinutes <= 630) {
       // 9 - 10.5 hours
-      gaugeColor = Color.fromARGB(255, 228, 198, 2);
+      gaugeColor = Color(0xFFFFD43B);
     } else {
       // Above 10.5 hours
       gaugeColor = Color.fromARGB(211, 218, 33, 0);
@@ -913,16 +1106,24 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     // Create the gauge with the correct progress and color
     return CircularPercentIndicator(
-      radius: 80.0,
-      lineWidth: 13.0,
-      percent: progress <= 1.0
-          ? progress
-          : 1.0, // Keep the gauge within bounds for progress display
-      center: Text(
-        _formatHoursAndMinutes(monthlyDelayMinutes), // Display in hh:mm format
-        style: TextStyle(fontSize: 16),
+      radius: 60.0,
+      lineWidth: 10.0,
+      percent: progress <= 1.0 ? progress : 1.0, // Keep the gauge within bounds
+      center: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            tr('Month Delay'), // The label text above the time
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 4), // Add spacing between label and time
+          Text(
+            _formatHoursAndMinutes(
+                monthlyDelayMinutes), // Display in hh:mm format
+            style: TextStyle(fontSize: 16),
+          ),
+        ],
       ),
-
       progressColor: gaugeColor,
       backgroundColor: Colors.grey,
       circularStrokeCap: CircularStrokeCap.round,
@@ -970,10 +1171,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Color _getShiftColor(String shift) {
-    if (shift == 'day') {
-      return const Color.fromARGB(255, 228, 198, 2);
+    if (shift == 'day' || shift == 'Training Course') {
+      return const Color(0xFFFFD43B);
     } else if (shift == 'night') {
-      return const Color.fromARGB(255, 51, 109, 210);
+      return const Color(0xFF3B5BDB);
     } else {
       return const Color.fromARGB(170, 158, 158, 158);
     }

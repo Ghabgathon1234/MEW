@@ -9,24 +9,24 @@ import 'database_helper.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 
 void main() async {
-  // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-  // FlutterLocalNotificationsPlugin();
   WidgetsFlutterBinding.ensureInitialized();
 
   await LocalNotificationService.init();
+
   // Initialize WorkManager for background tasks
   Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
   tz.initializeTimeZones();
+
   // Ensure EasyLocalization is initialized
   await EasyLocalization.ensureInitialized();
 
   runApp(
     EasyLocalization(
-        supportedLocales: const [Locale('en', 'US'), Locale('ar', 'AR')],
-        path:
-            'assets/translations', // <-- change the path of the translation files
-        fallbackLocale: const Locale('en', 'US'),
-        child: const MyApp()),
+      supportedLocales: const [Locale('en', 'US'), Locale('ar', 'AR')],
+      path: 'assets/translations', // Path to the translation files
+      fallbackLocale: const Locale('en', 'US'),
+      child: const MyApp(),
+    ),
   );
 }
 
@@ -40,8 +40,10 @@ void callbackDispatcher() {
       DatabaseHelper dbHelper = DatabaseHelper();
       DateTime now = DateTime.now();
 
+      // Assuming DayRecord is defined and imported
       List<DayRecord> records =
           await dbHelper.getAllRecordsForDate(now.year, now.month, now.day);
+
       for (DayRecord record in records) {
         if (record.status == 'onDuty' && record.attend1 == null) {
           DateTime shiftEnd = (record.shift == 'day')
@@ -57,7 +59,6 @@ void callbackDispatcher() {
     }
 
     await checkAndMarkAbsentees();
-
     return Future.value(true);
   });
 }
@@ -109,12 +110,12 @@ class _InitializerState extends State<Initializer> {
 
     if (hasLaunched == null || hasLaunched == false) {
       // Show the informational dialog about offline mode
-      _showOfflineModeDialog();
+      await _showOfflineModeDialog();
 
       // Show the notification permission request dialog after the informational dialog
       await Future.delayed(
           Duration(milliseconds: 500)); // Optional delay between dialogs
-      _showNotificationPermissionDialog();
+      await _showNotificationPermissionDialog();
 
       // Set the 'hasLaunched' flag to true after the first launch
       await prefs.setBool('hasLaunched', true);
@@ -126,15 +127,13 @@ class _InitializerState extends State<Initializer> {
     });
   }
 
-  void _showOfflineModeDialog() async {
-    showDialog(
+  Future<void> _showOfflineModeDialog() async {
+    return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Important Note').tr(),
-          content: Text(
-            'note_lunch',
-          ).tr(),
+          content: Text('note_lunch').tr(),
           actions: [
             TextButton(
               onPressed: () {
@@ -148,8 +147,8 @@ class _InitializerState extends State<Initializer> {
     );
   }
 
-  void _showNotificationPermissionDialog() async {
-    showDialog(
+  Future<void> _showNotificationPermissionDialog() async {
+    return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -161,8 +160,6 @@ class _InitializerState extends State<Initializer> {
               onPressed: () async {
                 // Request permissions for notifications
                 await LocalNotificationService.requestPermission();
-
-                // Close the dialog
                 Navigator.of(context).pop();
               },
               child: Text('Enable'),

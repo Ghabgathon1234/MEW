@@ -56,18 +56,21 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       // Display the selected page
       body: _pages[_currentIndex],
-      // Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        items: _navItems,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      // Bottom Navigation Bar with shadow
+      bottomNavigationBar: Material(
+        elevation: 14.0, // Adds the shadow effect
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          items: _navItems,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: Colors.blueAccent,
+          unselectedItemColor: Colors.grey,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+        ),
       ),
     );
   }
