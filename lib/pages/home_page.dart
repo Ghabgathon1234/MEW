@@ -295,12 +295,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       // Night shift: 5:00 PM to 9:00 AM next day
       _currentShiftDay = now.hour < 9 ? yesterday : today;
       _currentShift = 'night';
-    } else if (_currentShift == 'Training Course') {
-      _currentShiftDay = today;
-      _currentShift = 'Training Course';
     } else {
-      _currentShiftDay = null;
-      _currentShift = 'off';
+      DatabaseHelper dbHelper = DatabaseHelper();
+      DayRecord? existingRecord =
+          await dbHelper.getDayRecord(today.year, today.month, today.day);
+      if (existingRecord?.shift == 'Training Course') {
+        _currentShiftDay = today;
+        _currentShift = 'Training Course';
+      } else {
+        _currentShiftDay = null;
+        _currentShift = 'off';
+      }
     }
 
     await _updateButtonStates();
@@ -1002,7 +1007,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final dayRecord = _dayRecordsCache[formattedDate];
 
     Color cellColor;
-    if (dayRecord?.status == 'Training Course') {
+    if (dayRecord?.shift == 'Training Course') {
       cellColor = Color(0xFFFFD43B);
     } else if (dayRecord != null && dayRecord.status != 'onDuty') {
       cellColor = Color.fromARGB(211, 218, 33, 0);
@@ -1038,7 +1043,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final dayRecord = _dayRecordsCache[formattedDate];
 
     Color cellColor;
-    if (dayRecord?.status == 'Training Course') {
+    if (dayRecord?.shift == 'Training Course') {
       cellColor = Color(0xFFFFD43B);
     } else if (dayRecord != null && dayRecord.status != 'onDuty') {
       cellColor = Color.fromARGB(211, 218, 33, 0);
@@ -1075,7 +1080,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final dayRecord = _dayRecordsCache[formattedDate];
 
     Color cellColor;
-    if (dayRecord?.status == 'Training Course') {
+    if (dayRecord?.shift == 'Training Course') {
       cellColor = Color(0xFFFFD43B);
     } else if (dayRecord != null && dayRecord.status != 'onDuty') {
       cellColor = Color.fromARGB(211, 218, 33, 0); // Special color for off-duty

@@ -72,7 +72,7 @@ class _VacationsPageState extends State<VacationsPage> {
             year: existingRecord.year,
             month: existingRecord.month,
             day: existingRecord.day,
-            status: status,
+            status: "onDuty",
             shift: status,
             attend1: status == 'onDuty' ? existingRecord.attend1 : null,
             attend2: status == 'onDuty' ? existingRecord.attend2 : null,
