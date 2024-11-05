@@ -293,8 +293,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     } else if ((todayShift == 'night' && now.hour >= 17) ||
         (yesterdayShift == 'night' && now.hour < 9)) {
       // Night shift: 5:00 PM to 9:00 AM next day
-      _currentShiftDay = now.hour < 7 ? yesterday : today;
+      _currentShiftDay = now.hour < 9 ? yesterday : today;
       _currentShift = 'night';
+    } else if (_currentShift == 'Training Course') {
+      _currentShiftDay = today;
+      _currentShift = 'Training Course';
     } else {
       _currentShiftDay = null;
       _currentShift = 'off';
@@ -464,23 +467,24 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void handleNotification(isAttend, time) async {
-    if (isAttend == 0) {
-      LocalNotificationService.cancelNotification(2);
-      if (await checkNextWorkingDayStatus() == false) {
+    if (await checkNextWorkingDayStatus()) {
+      if (isAttend == 0) {
+        LocalNotificationService.cancelNotification(2);
+        if (await checkNextWorkingDayStatus() == false) {
+          LocalNotificationService.showScheduledNotification(
+              tr('Time to attend!'), tr('press to open'), time, isAttend);
+        }
+      } else if (isAttend == 1) {
         LocalNotificationService.showScheduledNotification(
-            tr('Time to attend!'), tr('press to open'), time, isAttend);
+            tr('Time to prove your presence!'),
+            tr('press to open'),
+            time,
+            isAttend);
+      } else if (isAttend == 2) {
+        LocalNotificationService.cancelNotification(1);
+        LocalNotificationService.showScheduledNotification(
+            tr('Time to go home!'), tr('press to open'), time, isAttend);
       }
-    } else if (isAttend == 1) {
-      LocalNotificationService.cancelNotification(0);
-      LocalNotificationService.showScheduledNotification(
-          tr('Time to prove your presence!'),
-          tr('press to open'),
-          time,
-          isAttend);
-    } else if (isAttend == 2) {
-      LocalNotificationService.cancelNotification(1);
-      LocalNotificationService.showScheduledNotification(
-          tr('Time to go home!'), tr('press to open'), time, isAttend);
     }
   }
 
@@ -492,13 +496,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     DateTime shiftStart = (_currentShift == 'day')
         ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
             _currentShiftDay!.day, 7, 0)
-        : DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
-            _currentShiftDay!.day, 19, 0);
+        : (_currentShift == 'night')
+            ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+                _currentShiftDay!.day, 19, 0)
+            : DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+                _currentShiftDay!.day, 8, 30);
+
     DateTime shiftEnd = (_currentShift == 'day')
         ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
             _currentShiftDay!.day, 19, 0)
-        : DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
-            _currentShiftDay!.day + 1, 7, 0);
+        : (_currentShift == 'night')
+            ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+                _currentShiftDay!.day + 1, 7, 0)
+            : DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+                _currentShiftDay!.day, 12, 30);
 
     print(
         'Attend in "$now" ------ shiftStart: $shiftStart, shiftEnd: $shiftEnd');
@@ -508,6 +519,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     int workedDays = 0;
     int delayDif = _delayMinutes;
     final tzShiftEnd = tz.TZDateTime.from(shiftEnd, tz.local);
+    final tzShiftStart = tz.TZDateTime.from(shiftStart, tz.local);
 
     DatabaseHelper dbHelper = DatabaseHelper();
     YearRecord? yearRecord = await dbHelper.getYearRecord(now.year);
@@ -526,7 +538,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (existingRecord.attend1 == null) {
         if (now.isBefore(shiftStart)) {
           _delayMinutes = 0;
-          handleNotification(1, tzShiftEnd.subtract(Duration(hours: 10)));
+          handleNotification(1, tzShiftStart.add(Duration(hours: 2)));
         } else {
           if (now.difference(shiftStart).inHours < 3) {
             // للبصمة الثالثة
@@ -601,8 +613,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     DateTime shiftEnd = (_currentShift == 'day')
         ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
             _currentShiftDay!.day, 19, 0)
-        : DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
-            _currentShiftDay!.day + 1, 7, 0);
+        : (_currentShift == 'night')
+            ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+                _currentShiftDay!.day + 1, 7, 0)
+            : DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
+                _currentShiftDay!.day, 12, 30);
+
     int oldDelay = _delayMinutes;
     final tzShiftEnd = tz.TZDateTime.from(shiftEnd, tz.local);
 
@@ -635,6 +651,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         handleNotification(0, tzShiftEnd.add(Duration(hours: 24)));
       } else if (_currentShift == 'night') {
         handleNotification(0, tzShiftEnd.add(Duration(hours: 48)));
+      } else {
+        handleNotification(0, tzShiftEnd.add(Duration(hours: 20)));
       }
       print('Day record is updated: delayMinutes = $_delayMinutes');
       await dbHelper.insertOrUpdateDayRecord(existingRecord);
@@ -692,7 +710,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (nextDayRecord != null &&
         (nextDayRecord.status == 'Sick Leave' ||
             nextDayRecord.status == 'Vacation' ||
-            nextDayRecord.status == 'Casual Leave')) {
+            nextDayRecord.status == 'Casual Leave' ||
+            nextDayRecord.status == 'OFF (before/after training)')) {
       // Return true if the next day is a vacation
       return true;
     }
@@ -1030,8 +1049,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return Container(
       margin: const EdgeInsets.all(3.0),
       alignment: Alignment.center,
-      width: 35.0,
-      height: 35.0,
+      width: 40.0,
+      height: 40.0,
       decoration: BoxDecoration(
         color: cellColor,
         // border: Border.all(
