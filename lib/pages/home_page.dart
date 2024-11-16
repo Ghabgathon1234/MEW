@@ -235,13 +235,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
     } else if (selectedLocation! == 'Alsabbiyah Powerplant') {
       switch (team) {
-        case 'D':
-          return 0;
         case 'C':
+          return 0;
+        case 'B':
           return 1;
         case 'A':
           return 2;
-        case 'B':
+        case 'D':
         default:
           return 3;
       }
@@ -486,7 +486,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             time,
             isAttend);
       } else if (isAttend == 2) {
-        LocalNotificationService.cancelNotification(1);
+        //LocalNotificationService.cancelNotification(1);
         LocalNotificationService.showScheduledNotification(
             tr('Time to go home!'), tr('press to open'), time, isAttend);
       }
@@ -611,9 +611,46 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     setState(() {});
   }
 
+  Future<tz.TZDateTime?> checkNextWorkingDay() async {
+    final DatabaseHelper dbHelper = DatabaseHelper();
+    DateTime today = DateTime.now();
+
+    while (true) {
+      // Fetch the record for the current date
+      DayRecord? dayRecord =
+          await dbHelper.getDayRecord(today.year, today.month, today.day);
+
+      // If there's no vacation or status is "onDuty", determine the next shift start time
+      if (dayRecord == null ||
+          dayRecord.status == null ||
+          dayRecord.status == "onDuty") {
+        String? shiftType = dayRecord?.shift;
+
+        // Determine the shift start time based on the shift type
+        if (shiftType == "day") {
+          return tz.TZDateTime.from(
+              DateTime(today.year, today.month, today.day, 7, 0), tz.local);
+        } else if (shiftType == "night") {
+          return tz.TZDateTime.from(
+              DateTime(today.year, today.month, today.day, 19, 0), tz.local);
+        } else if (shiftType == "Training Course") {
+          return tz.TZDateTime.from(
+              DateTime(today.year, today.month, today.day, 8, 30), tz.local);
+        } else {
+          // If the shift is not defined, default to 7:00 AM (day shift start)
+          return tz.TZDateTime.from(
+              DateTime(today.year, today.month, today.day, 7, 0), tz.local);
+        }
+      }
+
+      // Increment the date to check the next day
+      today = today.add(const Duration(days: 1));
+    }
+  }
+
   void _handleLeave() async {
     if (!_canLeave || _currentShiftDay == null) return;
-
+    tz.TZDateTime? nextShiftStart = await checkNextWorkingDay();
     DateTime now = DateTime.now();
     DateTime shiftEnd = (_currentShift == 'day')
         ? DateTime(_currentShiftDay!.year, _currentShiftDay!.month,
@@ -651,14 +688,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         await dbHelper.updateYearRecord(
             yearRecord.year, yearRecord.delay, yearRecord.workedDays);
       }
-      if (_currentShift == 'day') {
-        // check for onduty condition
-        handleNotification(0, tzShiftEnd.add(Duration(hours: 24)));
-      } else if (_currentShift == 'night') {
-        handleNotification(0, tzShiftEnd.add(Duration(hours: 48)));
-      } else {
-        handleNotification(0, tzShiftEnd.add(Duration(hours: 20)));
+      if(nextShiftStart!=null){
+        handleNotification(0, nextShiftStart);
+        print('next working day set: $nextShiftStart');
       }
+      else{
+        print('no next day found');
+      }
+      
       print('Day record is updated: delayMinutes = $_delayMinutes');
       await dbHelper.insertOrUpdateDayRecord(existingRecord);
 
